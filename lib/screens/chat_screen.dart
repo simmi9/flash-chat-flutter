@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 final _firestore = Firestore.instance;
+FirebaseUser loggedInUser;
 
 class ChatScreen extends StatefulWidget {
   static const String id = 'chat_screen';
@@ -14,7 +15,6 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
-  FirebaseUser loggedInUser;
   String messageText;
   final messageEditingController = new TextEditingController();
 
@@ -118,32 +118,45 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class MessageBubble extends StatelessWidget {
-  MessageBubble({this.sender, this.text});
+  MessageBubble({this.sender, this.text, this.isMe});
   final String sender;
   final String text;
+  bool isMe;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(10.0),
-      child:
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-        Text(sender, style: TextStyle(fontSize: 12.0, color: Colors.black54)),
-        Material(
-          borderRadius: BorderRadius.circular(20.0),
-          color: Colors.lightBlueAccent,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
-            child: Text(
-              '$text from $sender',
+      child: Column(
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              sender,
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 10.0,
+                fontSize: 12.0,
+                color: Colors.black54,
               ),
             ),
-          ),
-        ),
-      ]),
+            Material(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                bottomLeft: Radius.circular(20.0),
+                bottomRight: Radius.circular(20.0),
+              ),
+              color: isMe ? Colors.lightBlueAccent : Colors.lightGreenAccent,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
+                child: Text(
+                  '$text from $sender',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.0,
+                  ),
+                ),
+              ),
+            ),
+          ]),
     );
   }
 }
@@ -160,17 +173,24 @@ class MessagesStream extends StatelessWidget {
             backgroundColor: Colors.lightBlueAccent,
           ));
         }
-        final messages = snapshot.data.documents;
+        final messages = snapshot.data.documents.reversed;
         List<MessageBubble> messageBubbles = [];
         for (var message in messages) {
           final messageText = message.data['text'];
           final messageSender = message.data['sender'];
-          final messageBubble =
-              MessageBubble(sender: messageSender, text: messageText);
+
+          final currentUser = loggedInUser.email;
+
+          final messageBubble = MessageBubble(
+            sender: messageSender,
+            text: messageText,
+            isMe: currentUser == messageSender,
+          );
           messageBubbles.add(messageBubble);
         }
         return Expanded(
           child: ListView(
+              reverse: true,
               padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 20.0),
               children: messageBubbles),
         );
